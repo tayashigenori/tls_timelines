@@ -89,6 +89,8 @@
          (else *application)))
       (else *application))))
 
+; expression-to-action doesn't work yet
+
 (define value
   (lambda (e)
     (meaning e (quote ()))))
@@ -97,15 +99,14 @@
   (lambda (e table)
     ((expression-to-action e) e table)))
 
-; > (value (car (quote (a b c))))
-;; expecting a, but does not have value
-; mcar: expects argument of type <mutable-pair>; given ()
+; > (value `(car (quote (a b c)))) ;; expecting a
+; reference to undefined identifier: *application
 
 ; > (value `(quote (car (quote (a b c)))))
 ; (car '(a b c))
 
-; > (value (add1 6))
-; 7
+; > (value `(add1 6)) ;; expecting 7
+; reference to undefined identifier: *application
 
 ; > (value 6)
 ; 6
@@ -120,14 +121,16 @@
 ;              (cons nothing (quote ())))
 ;            (quote
 ;             (from nothing comes something))))
-; ((from nothing comes something))
+;; expecting ((from nothing comes something))
+; reference to undefined identifier: *application
 
 ; > (value `((lambda (nothing)
 ;              (cond
 ;                (nothing (quote something))
 ;                (else (quote nothing))))
 ;            #t))
-; something
+;; expecting something
+; reference to undefined identifier: *application
 
 ; > (value #f)
 ; #f
@@ -249,6 +252,8 @@
        (apply-closure
         (second fun) vals)))))
 
+; apply-closure is yet to be defined
+
 (define apply-primitive
   (lambda (name vals)
     (cond
@@ -283,22 +288,3 @@
       ((eq? (car x) (quote non-primitive))
        #f)
       (else #f))))
-
-(define apply-closure
-  (lambda (closure vals)
-    (meaning (body-of closure)
-             (extend-table
-              (new-entry
-               (formals-of closure)
-               vals)
-              (table-of closure)))))
-
-; > (apply-closure `((((u v w)
-;                      (1 2 3))
-;                     ((x y z)
-;                      (4 5 6)))
-;                    (x y)
-;                    (cons z x))
-;                  `((a b c) (d e f)))
-; (6 a b c)
-;; in the textbook it says (6 (a b c))

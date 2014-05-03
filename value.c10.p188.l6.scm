@@ -1,6 +1,4 @@
 (load "./common/atom.scm")
-(load "./common/add1.scm")
-(load "./common/sub1.scm")
 (load "./build.scm")
 (load "./first.scm")
 (load "./second.scm")
@@ -89,6 +87,8 @@
          (else *application)))
       (else *application))))
 
+; expression-to-action doesn't work yet
+
 (define value
   (lambda (e)
     (meaning e (quote ()))))
@@ -97,15 +97,14 @@
   (lambda (e table)
     ((expression-to-action e) e table)))
 
-; > (value (car (quote (a b c))))
-;; expecting a, but does not have value
-; mcar: expects argument of type <mutable-pair>; given ()
+; > (value `(car (quote (a b c)))) ;; expecting a
+; reference to undefined identifier: *application
 
 ; > (value `(quote (car (quote (a b c)))))
 ; (car '(a b c))
 
-; > (value (add1 6))
-; 7
+; > (value `(add1 6)) ;; expecting 7
+; reference to undefined identifier: *application
 
 ; > (value 6)
 ; 6
@@ -120,14 +119,16 @@
 ;              (cons nothing (quote ())))
 ;            (quote
 ;             (from nothing comes something))))
-; ((from nothing comes something))
+;; expecting ((from nothing comes something))
+; reference to undefined identifier: *application
 
 ; > (value `((lambda (nothing)
 ;              (cond
 ;                (nothing (quote something))
 ;                (else (quote nothing))))
 ;            #t))
-; something
+;; expecting something
+; reference to undefined identifier: *application
 
 ; > (value #f)
 ; #f
@@ -221,84 +222,3 @@
       (else
        (cons (meaning (car args) table)
              (evlis (cdr args) table))))))
-
-(define *application
-  (lambda (e table)
-    (oapply
-     (meaning (function-of e) table)
-     (evlis (arguments-of e) table))))
-
-(define function-of car)
-(define arguments-of cdr)
-
-(define primitive?
-  (lambda (l)
-    (eq? (first l) (quote primitive))))
-
-(define non-primitive?
-  (lambda (l)
-    (eq? (first l) (quote non-primitive))))
-
-(define oapply
-  (lambda (fun vals)
-    (cond
-      ((primitive? fun)
-       (apply-primitive
-        (second fun) vals))
-      ((non-primitive? fun)
-       (apply-closure
-        (second fun) vals)))))
-
-(define apply-primitive
-  (lambda (name vals)
-    (cond
-      ((eq? name (quote cons))
-       (cons (first vals) (second vals)))
-      ((eq? name (quote car))
-       (car (first vals)))
-      ((eq? name (quote cdr))
-       (cdr (first vals)))
-      ((eq? name (quote null?))
-       (null? (first vals)))
-      ((eq? name (quote eq?))
-       (eq? (first vals) (second vals)))
-      ((eq? name (quote atom?))
-       (:atom? (first vals)))
-      ((eq? name (quote zero?))
-       (zero? (first vals)))
-      ((eq? name (quote add1))
-       (add1 (first vals)))
-      ((eq? name (quote sub1))
-       (sub1 (first vals)))
-      ((eq? name (quote number?))
-       (number? (first vals))))))
-
-(define :atom?
-  (lambda (x)
-    (cond
-      ((atom? x) #t)
-      ((null? x) #f)
-      ((eq? (car x) (quote primitive))
-       #t)
-      ((eq? (car x) (quote non-primitive))
-       #f)
-      (else #f))))
-
-(define apply-closure
-  (lambda (closure vals)
-    (meaning (body-of closure)
-             (extend-table
-              (new-entry
-               (formals-of closure)
-               vals)
-              (table-of closure)))))
-
-; > (apply-closure `((((u v w)
-;                      (1 2 3))
-;                     ((x y z)
-;                      (4 5 6)))
-;                    (x y)
-;                    (cons z x))
-;                  `((a b c) (d e f)))
-; (6 a b c)
-;; in the textbook it says (6 (a b c))
